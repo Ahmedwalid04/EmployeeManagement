@@ -16,8 +16,7 @@ builder.Services.AddOpenApi();
 builder.Services.AddAutoMapper(_ => { }, typeof(EmployeeProfile));
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
-builder.Services.AddScoped<IStorageBroker>(serviceProvider =>
-    new StorageBroker(serviceProvider.GetRequiredService<DbContextOptions<AppDbContext>>()));
+builder.Services.AddScoped<IStorageBroker, StorageBroker>();
 builder.Services.AddScoped<IFileLoggingBroker, FileLoggingBroker>();
 builder.Services.AddScoped<IEmployeeService, EmployeeService>();
 builder.Services.AddCors(options =>

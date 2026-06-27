@@ -20,8 +20,7 @@ public class EmployeeService(
         {
             Employee employee = mapper.Map<Employee>(employeeCreateDto);
 
-            await storageBroker.Employees.AddAsync(employee, cancellationToken);
-            await storageBroker.SaveChangesAsync(cancellationToken);
+            await storageBroker.InsertEmployeeAsync(employee);
 
             return mapper.Map<EmployeeReadDto>(employee);
         }
@@ -40,7 +39,9 @@ public class EmployeeService(
     {
         try
         {
-            IQueryable<Employee> employeeQuery = storageBroker.Employees.AsNoTracking();
+            IQueryable<Employee> employeeQuery = storageBroker
+                .SelectAllEmployees()
+                .AsNoTracking();
 
             if (!string.IsNullOrWhiteSpace(searchTerm))
             {
@@ -75,16 +76,14 @@ public class EmployeeService(
     {
         try
         {
-            Employee? employee = await storageBroker.Employees
-                .FirstOrDefaultAsync(foundEmployee => foundEmployee.Id == employeeId, cancellationToken);
+            Employee? employee = await storageBroker.SelectEmployeeByIdAsync(employeeId);
 
             if (employee is null)
             {
                 throw new KeyNotFoundException($"Employee with id {employeeId} was not found.");
             }
 
-            storageBroker.Employees.Remove(employee);
-            await storageBroker.SaveChangesAsync(cancellationToken);
+            await storageBroker.DeleteEmployeeAsync(employee);
         }
         catch (Exception exception)
         {

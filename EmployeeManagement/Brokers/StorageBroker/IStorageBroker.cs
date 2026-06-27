@@ -1,11 +1,16 @@
 using EmployeeManagement.Models;
-using Microsoft.EntityFrameworkCore;
 
 namespace EmployeeManagement.Brokers.StorageBroker;
 
 public interface IStorageBroker
 {
-    DbSet<Employee> Employees { get; }
+    IQueryable<Employee> SelectAllEmployees();
 
-    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+    ValueTask<Employee?> SelectEmployeeByIdAsync(int employeeId);
+
+    ValueTask<Employee> InsertEmployeeAsync(Employee employee);
+
+    ValueTask<Employee> UpdateEmployeeAsync(Employee employee);
+
+    ValueTask<Employee> DeleteEmployeeAsync(Employee employee);
 }
