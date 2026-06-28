@@ -307,11 +307,21 @@ function App() {
       return ''
     }
 
-    return sortDirection === 'desc' ? '↓' : '↑'
+    return sortDirection === 'desc' ? 'v' : '^'
   }
 
   function getDepartmentName(departmentValue: number) {
     return departments.find((department) => department.value === departmentValue)?.name ?? 'Unknown'
+  }
+
+  function getActiveBadgeClasses(employee: Employee) {
+    const isBusy = togglingEmployeeId === employee.id
+
+    return `inline-flex rounded-full px-3 py-1 text-xs font-semibold transition focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2 focus:ring-offset-[var(--surface)] disabled:cursor-not-allowed disabled:opacity-60 ${
+      employee.isActive
+        ? 'bg-[color:rgb(232_220_196_/_0.18)] text-[var(--accent)] hover:bg-[color:rgb(232_220_196_/_0.28)]'
+        : 'bg-[color:rgb(104_106_108_/_0.16)] text-[var(--nardo-light)] hover:bg-[color:rgb(104_106_108_/_0.28)]'
+    } ${isBusy ? 'animate-pulse' : ''}`
   }
 
   return (
@@ -319,23 +329,12 @@ function App() {
       <div className="mx-auto flex min-h-screen max-w-7xl flex-col px-4 py-8 sm:px-6 lg:px-8">
         <header className="mb-6 rounded-[2rem] border border-[var(--border)] bg-[color:rgb(23_25_27_/_0.92)] p-6 shadow-[0_24px_80px_-40px_rgba(0,0,0,0.75)] backdrop-blur">
           <div className="flex flex-col gap-6">
-            <div className="flex flex-col gap-3">
-              <p className="text-sm font-semibold uppercase tracking-[0.28em] text-[var(--accent)]">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <h1 className="font-['Trebuchet_MS','Gill_Sans',sans-serif] text-3xl font-bold tracking-tight text-[var(--text)] sm:text-4xl">
                 Employee Management
-              </p>
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-                <div>
-                  <h1 className="font-['Trebuchet_MS','Gill_Sans',sans-serif] text-3xl font-bold tracking-tight text-[var(--text)] sm:text-4xl">
-                    Workforce records without the clutter
-                  </h1>
-                  <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--text-muted)] sm:text-base">
-                    Add employees, search the directory, and manage records from one clean
-                    dashboard.
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-[color:rgb(232_220_196_/_0.16)] bg-[var(--surface-2)] px-4 py-3 text-sm text-[var(--accent)]">
-                  {resultsLabel}
-                </div>
+              </h1>
+              <div className="rounded-2xl border border-[color:rgb(232_220_196_/_0.16)] bg-[var(--surface-2)] px-4 py-3 text-sm text-[var(--accent)]">
+                {resultsLabel}
               </div>
             </div>
 
@@ -385,9 +384,6 @@ function App() {
               <h2 className="font-['Trebuchet_MS','Gill_Sans',sans-serif] text-2xl font-bold text-[var(--text)]">
                 Employee Directory
               </h2>
-              <p className="text-sm text-[var(--text-muted)]">
-                Review current records, sort the directory, and archive entries when needed.
-              </p>
             </div>
             {isLoadingEmployees ? (
               <span className="text-sm font-medium text-[var(--text-muted)]">
@@ -492,29 +488,27 @@ function App() {
                           }).format(employee.salary)}
                         </td>
                         <td className="px-5 py-4 align-top">
-                          <div className="flex flex-col items-start gap-3">
-                            <span
-                              className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
-                                employee.isActive
-                                  ? 'bg-[color:rgb(232_220_196_/_0.18)] text-[var(--accent)]'
-                                  : 'bg-[color:rgb(104_106_108_/_0.16)] text-[var(--nardo-light)]'
-                              }`}
-                            >
+                          <button
+                            type="button"
+                            className={getActiveBadgeClasses(employee)}
+                            disabled={togglingEmployeeId === employee.id}
+                            onClick={() => void handleToggleEmployeeActive(employee.id)}
+                            aria-label={`Set ${employee.fullName} as ${
+                              employee.isActive ? 'inactive' : 'active'
+                            }`}
+                            title={
+                              togglingEmployeeId === employee.id
+                                ? 'Updating status'
+                                : `Click to set ${employee.fullName} as ${
+                                    employee.isActive ? 'inactive' : 'active'
+                                  }`
+                            }
+                          >
+                            <span className="sr-only">Toggle active status: </span>
+                            <span>
                               {employee.isActive ? 'Active' : 'Inactive'}
                             </span>
-                            <button
-                              type="button"
-                              className="rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1.5 text-xs font-semibold text-[var(--text)] transition hover:border-[var(--accent)] hover:text-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-60"
-                              disabled={togglingEmployeeId === employee.id}
-                              onClick={() => void handleToggleEmployeeActive(employee.id)}
-                            >
-                              {togglingEmployeeId === employee.id
-                                ? 'Updating...'
-                                : employee.isActive
-                                  ? 'Set Inactive'
-                                  : 'Set Active'}
-                            </button>
-                          </div>
+                          </button>
                         </td>
                         <td className="px-5 py-4 text-right align-top">
                           <button
