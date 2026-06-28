@@ -5,8 +5,15 @@ import {
   deleteEmployee as removeEmployee,
   getDepartments,
   getEmployees,
+  toggleEmployeeActive,
 } from './services/employeeApi'
-import type { Department, Employee, EmployeeCreate } from './types/models'
+import type {
+  Department,
+  Employee,
+  EmployeeCreate,
+  EmployeeSortBy,
+  SortDirection,
+} from './types/models'
 
 const pageSize = 10
 
@@ -45,11 +52,14 @@ function App() {
   const [searchTerm, setSearchTerm] = useState('')
   const [pageNumber, setPageNumber] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
-  const [showEmployeeForm, setShowEmployeeForm] = useState(false)
+  const [sortBy, setSortBy] = useState<EmployeeSortBy | ''>('')
+  const [sortDirection, setSortDirection] = useState<SortDirection | ''>('')
+  const [showEmployeeModal, setShowEmployeeModal] = useState(false)
   const [isLoadingEmployees, setIsLoadingEmployees] = useState(false)
   const [isLoadingDepartments, setIsLoadingDepartments] = useState(false)
   const [isSubmittingEmployee, setIsSubmittingEmployee] = useState(false)
   const [deletingEmployeeId, setDeletingEmployeeId] = useState<number | null>(null)
+  const [togglingEmployeeId, setTogglingEmployeeId] = useState<number | null>(null)
   const [loadErrorMessage, setLoadErrorMessage] = useState('')
   const [formErrorMessage, setFormErrorMessage] = useState('')
   const [employeeForm, setEmployeeForm] = useState<EmployeeFormValues>(initialEmployeeForm)
@@ -73,7 +83,7 @@ function App() {
 
   useEffect(() => {
     void loadDepartments()
-    void loadEmployees(1, '')
+    void loadEmployees(1, '', '', '')
   }, [])
 
   async function loadDepartments() {
@@ -90,14 +100,26 @@ function App() {
     }
   }
 
-  async function loadEmployees(nextPageNumber = pageNumber, nextSearchTerm = searchTerm) {
+  async function loadEmployees(
+    nextPageNumber = pageNumber,
+    nextSearchTerm = searchTerm,
+    nextSortBy = sortBy,
+    nextSortDirection = sortDirection,
+  ) {
     setIsLoadingEmployees(true)
     setLoadErrorMessage('')
 
     const term = nextSearchTerm?.trim() ?? ''
 
     try {
-      const employeesResponse = await getEmployees(term, nextPageNumber, pageSize)
+      const employeesResponse = await getEmployees(
+        term,
+        nextPageNumber,
+        pageSize,
+        nextSortBy,
+        nextSortDirection,
+      )
+
       setEmployees(employeesResponse.items)
       setPageNumber(employeesResponse.pageNumber)
       setTotalCount(employeesResponse.totalCount)
@@ -110,17 +132,14 @@ function App() {
 
   function searchEmployees(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const nextPageNumber = 1
-    setPageNumber(nextPageNumber)
-    void loadEmployees(nextPageNumber, searchTerm)
+    setPageNumber(1)
+    void loadEmployees(1, searchTerm, sortBy, sortDirection)
   }
 
   function clearSearch() {
-    const clearedSearchTerm = ''
-    const nextPageNumber = 1
-    setSearchTerm(clearedSearchTerm)
-    setPageNumber(nextPageNumber)
-    void loadEmployees(nextPageNumber, clearedSearchTerm)
+    setSearchTerm('')
+    setPageNumber(1)
+    void loadEmployees(1, '', sortBy, sortDirection)
   }
 
   function goToPreviousPage() {
@@ -130,7 +149,7 @@ function App() {
 
     const nextPageNumber = pageNumber - 1
     setPageNumber(nextPageNumber)
-    void loadEmployees(nextPageNumber, searchTerm)
+    void loadEmployees(nextPageNumber, searchTerm, sortBy, sortDirection)
   }
 
   function goToNextPage() {
@@ -140,7 +159,20 @@ function App() {
 
     const nextPageNumber = pageNumber + 1
     setPageNumber(nextPageNumber)
-    void loadEmployees(nextPageNumber, searchTerm)
+    void loadEmployees(nextPageNumber, searchTerm, sortBy, sortDirection)
+  }
+
+  function openEmployeeModal() {
+    setFormErrorMessage('')
+    setEmployeeFormErrors({})
+    setShowEmployeeModal(true)
+  }
+
+  function closeEmployeeModal() {
+    setFormErrorMessage('')
+    setEmployeeFormErrors({})
+    setEmployeeForm(initialEmployeeForm)
+    setShowEmployeeModal(false)
   }
 
   function updateEmployeeForm<Key extends keyof EmployeeFormValues>(
@@ -220,8 +252,8 @@ function App() {
       setEmployeeFormErrors({})
       setSearchTerm('')
       setPageNumber(1)
-      setShowEmployeeForm(false)
-      await loadEmployees(1, '')
+      setShowEmployeeModal(false)
+      await loadEmployees(1, '', sortBy, sortDirection)
     } catch {
       setFormErrorMessage('Unable to add the employee right now.')
     } finally {
@@ -238,12 +270,44 @@ function App() {
       const deletedLastRowOnPage = employees.length === 1 && pageNumber > 1
       const nextPageNumber = deletedLastRowOnPage ? pageNumber - 1 : pageNumber
       setPageNumber(nextPageNumber)
-      await loadEmployees(nextPageNumber, searchTerm)
+      await loadEmployees(nextPageNumber, searchTerm, sortBy, sortDirection)
     } catch {
       setLoadErrorMessage('Unable to delete the employee right now.')
     } finally {
       setDeletingEmployeeId(null)
     }
+  }
+
+  async function handleToggleEmployeeActive(employeeId: number) {
+    setTogglingEmployeeId(employeeId)
+    setLoadErrorMessage('')
+
+    try {
+      await toggleEmployeeActive(employeeId)
+      await loadEmployees(pageNumber, searchTerm, sortBy, sortDirection)
+    } catch {
+      setLoadErrorMessage('Unable to update the employee status right now.')
+    } finally {
+      setTogglingEmployeeId(null)
+    }
+  }
+
+  function handleSort(column: EmployeeSortBy) {
+    const nextSortDirection: SortDirection =
+      sortBy === column && sortDirection === 'asc' ? 'desc' : 'asc'
+
+    setSortBy(column)
+    setSortDirection(nextSortDirection)
+    setPageNumber(1)
+    void loadEmployees(1, searchTerm, column, nextSortDirection)
+  }
+
+  function getSortIndicator(column: EmployeeSortBy) {
+    if (sortBy !== column) {
+      return ''
+    }
+
+    return sortDirection === 'desc' ? '↓' : '↑'
   }
 
   function getDepartmentName(departmentValue: number) {
@@ -279,9 +343,9 @@ function App() {
               <button
                 type="button"
                 className="inline-flex items-center justify-center rounded-full bg-[var(--accent)] px-5 py-3 text-sm font-semibold text-[var(--bg)] transition hover:bg-[var(--accent-hover)]"
-                onClick={() => setShowEmployeeForm((current) => !current)}
+                onClick={openEmployeeModal}
               >
-                {showEmployeeForm ? 'Hide Form' : 'Add Employee'}
+                Add Employee
               </button>
 
               <form
@@ -315,22 +379,226 @@ function App() {
           </div>
         </header>
 
-        {showEmployeeForm ? (
-          <section className="mb-6 rounded-[2rem] border border-[var(--border)] bg-[color:rgb(23_25_27_/_0.92)] p-6 shadow-[0_24px_80px_-40px_rgba(0,0,0,0.75)] backdrop-blur">
-            <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <section className="flex-1 rounded-[2rem] border border-[var(--border)] bg-[color:rgb(23_25_27_/_0.95)] p-6 shadow-[0_24px_80px_-40px_rgba(0,0,0,0.75)] backdrop-blur">
+          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="font-['Trebuchet_MS','Gill_Sans',sans-serif] text-2xl font-bold text-[var(--text)]">
+                Employee Directory
+              </h2>
+              <p className="text-sm text-[var(--text-muted)]">
+                Review current records, sort the directory, and archive entries when needed.
+              </p>
+            </div>
+            {isLoadingEmployees ? (
+              <span className="text-sm font-medium text-[var(--text-muted)]">
+                Loading employees...
+              </span>
+            ) : null}
+          </div>
+
+          {loadErrorMessage ? (
+            <div className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              {loadErrorMessage}
+            </div>
+          ) : null}
+
+          <div className="overflow-hidden rounded-3xl border border-[var(--border)]">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-[var(--border)]">
+                <thead className="bg-[var(--surface-2)] text-left text-xs font-semibold uppercase tracking-[0.2em] text-[var(--nardo-light)]">
+                  <tr>
+                    <th className="px-5 py-4">
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-2 text-left transition hover:text-[var(--accent)]"
+                        onClick={() => handleSort('fullName')}
+                      >
+                        Full Name <span>{getSortIndicator('fullName')}</span>
+                      </button>
+                    </th>
+                    <th className="px-5 py-4">
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-2 text-left transition hover:text-[var(--accent)]"
+                        onClick={() => handleSort('email')}
+                      >
+                        Email <span>{getSortIndicator('email')}</span>
+                      </button>
+                    </th>
+                    <th className="px-5 py-4">Phone</th>
+                    <th className="px-5 py-4">
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-2 text-left transition hover:text-[var(--accent)]"
+                        onClick={() => handleSort('department')}
+                      >
+                        Department <span>{getSortIndicator('department')}</span>
+                      </button>
+                    </th>
+                    <th className="px-5 py-4">
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-2 text-left transition hover:text-[var(--accent)]"
+                        onClick={() => handleSort('hireDate')}
+                      >
+                        Hire Date <span>{getSortIndicator('hireDate')}</span>
+                      </button>
+                    </th>
+                    <th className="px-5 py-4">
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-2 text-left transition hover:text-[var(--accent)]"
+                        onClick={() => handleSort('salary')}
+                      >
+                        Salary <span>{getSortIndicator('salary')}</span>
+                      </button>
+                    </th>
+                    <th className="px-5 py-4">
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-2 text-left transition hover:text-[var(--accent)]"
+                        onClick={() => handleSort('isActive')}
+                      >
+                        Active <span>{getSortIndicator('isActive')}</span>
+                      </button>
+                    </th>
+                    <th className="px-5 py-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[var(--border)] bg-[var(--surface)] text-sm text-[var(--text-muted)]">
+                  {employees.length > 0 ? (
+                    employees.map((employee) => (
+                      <tr
+                        key={employee.id}
+                        className="transition hover:bg-[color:rgb(104_106_108_/_0.10)]"
+                      >
+                        <td className="px-5 py-4 align-top font-semibold text-[var(--text)]">
+                          {employee.fullName}
+                        </td>
+                        <td className="px-5 py-4 align-top">{employee.email}</td>
+                        <td className="px-5 py-4 align-top">{employee.phone}</td>
+                        <td className="px-5 py-4 align-top">
+                          <span className="inline-flex rounded-full bg-[color:rgb(104_106_108_/_0.18)] px-3 py-1 text-xs font-semibold text-[var(--nardo-light)]">
+                            {getDepartmentName(employee.department)}
+                          </span>
+                        </td>
+                        <td className="px-5 py-4 align-top">
+                          {new Date(employee.hireDate).toLocaleDateString()}
+                        </td>
+                        <td className="px-5 py-4 align-top">
+                          {new Intl.NumberFormat('en-US', {
+                            style: 'currency',
+                            currency: 'USD',
+                          }).format(employee.salary)}
+                        </td>
+                        <td className="px-5 py-4 align-top">
+                          <div className="flex flex-col items-start gap-3">
+                            <span
+                              className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
+                                employee.isActive
+                                  ? 'bg-[color:rgb(232_220_196_/_0.18)] text-[var(--accent)]'
+                                  : 'bg-[color:rgb(104_106_108_/_0.16)] text-[var(--nardo-light)]'
+                              }`}
+                            >
+                              {employee.isActive ? 'Active' : 'Inactive'}
+                            </span>
+                            <button
+                              type="button"
+                              className="rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1.5 text-xs font-semibold text-[var(--text)] transition hover:border-[var(--accent)] hover:text-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-60"
+                              disabled={togglingEmployeeId === employee.id}
+                              onClick={() => void handleToggleEmployeeActive(employee.id)}
+                            >
+                              {togglingEmployeeId === employee.id
+                                ? 'Updating...'
+                                : employee.isActive
+                                  ? 'Set Inactive'
+                                  : 'Set Active'}
+                            </button>
+                          </div>
+                        </td>
+                        <td className="px-5 py-4 text-right align-top">
+                          <button
+                            type="button"
+                            className="rounded-full border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-semibold text-rose-700 transition hover:border-rose-300 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
+                            disabled={deletingEmployeeId === employee.id}
+                            onClick={() => void handleDeleteEmployee(employee.id)}
+                          >
+                            {deletingEmployeeId === employee.id ? 'Deleting...' : 'Delete'}
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td
+                        colSpan={8}
+                        className="px-5 py-12 text-center text-sm text-[var(--text-muted)]"
+                      >
+                        No employees match the current search.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-[var(--text-muted)]">{resultsLabel}</p>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                disabled={pageNumber <= 1}
+                className="rounded-full border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-semibold text-[var(--text)] transition hover:border-[var(--nardo-light)] hover:bg-[var(--surface-2)] disabled:cursor-not-allowed disabled:opacity-40"
+                onClick={goToPreviousPage}
+              >
+                Previous
+              </button>
+              <div className="rounded-full bg-[var(--surface-2)] px-4 py-2 text-sm font-semibold text-[var(--text)]">
+                Page {pageNumber} of {totalPages}
+              </div>
+              <button
+                type="button"
+                disabled={pageNumber >= totalPages}
+                className="rounded-full border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-semibold text-[var(--text)] transition hover:border-[var(--nardo-light)] hover:bg-[var(--surface-2)] disabled:cursor-not-allowed disabled:opacity-40"
+                onClick={goToNextPage}
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      {showEmployeeModal ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[color:rgb(14_15_16_/_0.72)] px-4 py-8 backdrop-blur-sm">
+          <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-[2rem] border border-[var(--border)] bg-[color:rgb(23_25_27_/_0.98)] p-6 shadow-[0_32px_120px_-50px_rgba(0,0,0,0.9)]">
+            <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <h2 className="font-['Trebuchet_MS','Gill_Sans',sans-serif] text-2xl font-bold text-[var(--text)]">
-                  Add Employee
+                <p className="text-sm font-semibold uppercase tracking-[0.28em] text-[var(--accent)]">
+                  New Employee
+                </p>
+                <h2 className="mt-2 font-['Trebuchet_MS','Gill_Sans',sans-serif] text-2xl font-bold text-[var(--text)]">
+                  Add employee record
                 </h2>
-                <p className="text-sm text-[var(--text-muted)]">
+                <p className="mt-2 text-sm text-[var(--text-muted)]">
                   Complete the required details to create a new employee record.
                 </p>
               </div>
-              {isLoadingDepartments ? (
-                <span className="text-sm font-medium text-[var(--text-muted)]">
-                  Loading departments...
-                </span>
-              ) : null}
+              <div className="flex items-center gap-3">
+                {isLoadingDepartments ? (
+                  <span className="text-sm font-medium text-[var(--text-muted)]">
+                    Loading departments...
+                  </span>
+                ) : null}
+                <button
+                  type="button"
+                  className="rounded-full border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-semibold text-[var(--text)] transition hover:border-[var(--nardo-light)] hover:bg-[var(--surface-2)]"
+                  onClick={closeEmployeeModal}
+                >
+                  Close
+                </button>
+              </div>
             </div>
 
             {formErrorMessage ? (
@@ -474,147 +742,15 @@ function App() {
                 <button
                   type="button"
                   className="rounded-full border border-[var(--border)] bg-[var(--surface)] px-6 py-3 text-sm font-semibold text-[var(--text)] transition hover:border-[var(--nardo-light)] hover:bg-[var(--surface-2)]"
-                  onClick={() => setShowEmployeeForm(false)}
+                  onClick={closeEmployeeModal}
                 >
                   Cancel
                 </button>
               </div>
             </form>
-          </section>
-        ) : null}
-
-        <section className="flex-1 rounded-[2rem] border border-[var(--border)] bg-[color:rgb(23_25_27_/_0.95)] p-6 shadow-[0_24px_80px_-40px_rgba(0,0,0,0.75)] backdrop-blur">
-          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="font-['Trebuchet_MS','Gill_Sans',sans-serif] text-2xl font-bold text-[var(--text)]">
-                Employee Directory
-              </h2>
-              <p className="text-sm text-[var(--text-muted)]">
-                Review current records and remove entries when needed.
-              </p>
-            </div>
-            {isLoadingEmployees ? (
-              <span className="text-sm font-medium text-[var(--text-muted)]">
-                Loading employees...
-              </span>
-            ) : null}
           </div>
-
-          {loadErrorMessage ? (
-            <div className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-              {loadErrorMessage}
-            </div>
-          ) : null}
-
-          <div className="overflow-hidden rounded-3xl border border-[var(--border)]">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-[var(--border)]">
-                <thead className="bg-[var(--surface-2)] text-left text-xs font-semibold uppercase tracking-[0.2em] text-[var(--nardo-light)]">
-                  <tr>
-                    <th className="px-5 py-4">Employee</th>
-                    <th className="px-5 py-4">Department</th>
-                    <th className="px-5 py-4">Hire Date</th>
-                    <th className="px-5 py-4">Salary</th>
-                    <th className="px-5 py-4">Status</th>
-                    <th className="px-5 py-4 text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[var(--border)] bg-[var(--surface)] text-sm text-[var(--text-muted)]">
-                  {employees.length > 0 ? (
-                    employees.map((employee) => (
-                      <tr
-                        key={employee.id}
-                        className="transition hover:bg-[color:rgb(104_106_108_/_0.10)]"
-                      >
-                        <td className="px-5 py-4 align-top">
-                          <div className="font-semibold text-[var(--text)]">
-                            {employee.fullName}
-                          </div>
-                          <div className="mt-1 text-xs text-[var(--text-muted)]">
-                            {employee.email}
-                          </div>
-                          <div className="mt-1 text-xs text-[var(--text-muted)]">
-                            {employee.phone}
-                          </div>
-                        </td>
-                        <td className="px-5 py-4 align-top">
-                          <span className="inline-flex rounded-full bg-[color:rgb(104_106_108_/_0.18)] px-3 py-1 text-xs font-semibold text-[var(--nardo-light)]">
-                            {getDepartmentName(employee.department)}
-                          </span>
-                        </td>
-                        <td className="px-5 py-4 align-top">
-                          {new Date(employee.hireDate).toLocaleDateString()}
-                        </td>
-                        <td className="px-5 py-4 align-top">
-                          {new Intl.NumberFormat('en-US', {
-                            style: 'currency',
-                            currency: 'USD',
-                          }).format(employee.salary)}
-                        </td>
-                        <td className="px-5 py-4 align-top">
-                          <span
-                            className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
-                              employee.isActive
-                                ? 'bg-[color:rgb(232_220_196_/_0.18)] text-[var(--accent)]'
-                                : 'bg-[color:rgb(104_106_108_/_0.16)] text-[var(--nardo-light)]'
-                            }`}
-                          >
-                            {employee.isActive ? 'Active' : 'Inactive'}
-                          </span>
-                        </td>
-                        <td className="px-5 py-4 text-right align-top">
-                          <button
-                            type="button"
-                            className="rounded-full border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-semibold text-rose-700 transition hover:border-rose-300 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
-                            disabled={deletingEmployeeId === employee.id}
-                            onClick={() => void handleDeleteEmployee(employee.id)}
-                          >
-                            {deletingEmployeeId === employee.id ? 'Deleting...' : 'Delete'}
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td
-                        colSpan={6}
-                        className="px-5 py-12 text-center text-sm text-[var(--text-muted)]"
-                      >
-                        No employees match the current search.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-[var(--text-muted)]">{resultsLabel}</p>
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                disabled={pageNumber <= 1}
-                className="rounded-full border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-semibold text-[var(--text)] transition hover:border-[var(--nardo-light)] hover:bg-[var(--surface-2)] disabled:cursor-not-allowed disabled:opacity-40"
-                onClick={goToPreviousPage}
-              >
-                Previous
-              </button>
-              <div className="rounded-full bg-[var(--surface-2)] px-4 py-2 text-sm font-semibold text-[var(--text)]">
-                Page {pageNumber} of {totalPages}
-              </div>
-              <button
-                type="button"
-                disabled={pageNumber >= totalPages}
-                className="rounded-full border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-semibold text-[var(--text)] transition hover:border-[var(--nardo-light)] hover:bg-[var(--surface-2)] disabled:cursor-not-allowed disabled:opacity-40"
-                onClick={goToNextPage}
-              >
-                Next
-              </button>
-            </div>
-          </div>
-        </section>
-      </div>
+        </div>
+      ) : null}
     </div>
   )
 }

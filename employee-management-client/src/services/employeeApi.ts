@@ -1,4 +1,11 @@
-import type { Department, Employee, EmployeeCreate, PagedResult } from '../types/models'
+import type {
+  Department,
+  Employee,
+  EmployeeCreate,
+  EmployeeSortBy,
+  PagedResult,
+  SortDirection,
+} from '../types/models'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5114'
 
@@ -26,6 +33,8 @@ export async function getEmployees(
   searchTerm: string,
   pageNumber: number,
   pageSize: number,
+  sortBy?: EmployeeSortBy | '',
+  sortDirection?: SortDirection | '',
 ): Promise<PagedResult<Employee>> {
   const term = searchTerm?.trim() ?? ''
   const params = new URLSearchParams({
@@ -35,6 +44,14 @@ export async function getEmployees(
 
   if (term.length > 0) {
     params.set('searchTerm', term)
+  }
+
+  if (sortBy) {
+    params.set('sortBy', sortBy)
+  }
+
+  if (sortDirection) {
+    params.set('sortDirection', sortDirection)
   }
 
   return request<PagedResult<Employee>>(`/api/Employees?${params.toString()}`)
@@ -50,6 +67,12 @@ export async function createEmployee(employee: EmployeeCreate): Promise<Employee
 export async function deleteEmployee(employeeId: number): Promise<void> {
   await request<void>(`/api/Employees/${employeeId}`, {
     method: 'DELETE',
+  })
+}
+
+export async function toggleEmployeeActive(employeeId: number): Promise<Employee> {
+  return request<Employee>(`/api/Employees/${employeeId}/toggle-active`, {
+    method: 'PATCH',
   })
 }
 

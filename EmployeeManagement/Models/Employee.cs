@@ -28,4 +28,6 @@ public class Employee
     public Department Department { get; set; }
 
     public bool IsActive { get; set; }
+
+    public bool IsDeleted { get; set; }
 }
