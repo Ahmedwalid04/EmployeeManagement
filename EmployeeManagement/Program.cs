@@ -8,7 +8,7 @@ using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-const string CorsPolicyName = "AllowAngularApp";
+const string CorsPolicyName = "AllowFrontendApp";
 
 // Add services to the container.
 builder.Services.AddControllers();
@@ -24,7 +24,7 @@ builder.Services.AddCors(options =>
     options.AddPolicy(
         CorsPolicyName,
         policy => policy
-            .WithOrigins("http://localhost:4200")
+            .WithOrigins("http://localhost:4200", "http://localhost:5173")
             .AllowAnyHeader()
             .AllowAnyMethod());
 });

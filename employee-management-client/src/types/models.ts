@@ -9,7 +9,7 @@ export interface Employee {
   isActive: boolean;
 }
 
-export interface CreateEmployeeRequest {
+export interface EmployeeCreate {
   fullName: string;
   email: string;
   phone: string;
@@ -17,4 +17,16 @@ export interface CreateEmployeeRequest {
   salary: number;
   department: number;
   isActive: boolean;
+}
+
+export interface Department {
+  value: number;
+  name: string;
+}
+
+export interface PagedResult<T> {
+  items: T[];
+  pageNumber: number;
+  pageSize: number;
+  totalCount: number;
 }
