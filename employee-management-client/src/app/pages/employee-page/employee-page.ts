@@ -20,7 +20,6 @@ export class EmployeePageComponent implements OnInit {
   protected readonly pageSize = 10;
   protected employees: Employee[] = [];
   protected departments: Department[] = [];
-  protected searchTerm = '';
   protected pageNumber = 1;
   protected totalCount = 0;
   protected isLoadingEmployees = false;
@@ -39,6 +38,10 @@ export class EmployeePageComponent implements OnInit {
     salary: [null as number | null, [Validators.required, Validators.min(0)]],
     department: [null as number | null, [Validators.required]],
     isActive: [true]
+  });
+
+  protected readonly searchForm = this.formBuilder.group({
+    searchTerm: ['']
   });
 
   public ngOnInit(): void {
@@ -74,22 +77,13 @@ export class EmployeePageComponent implements OnInit {
     this.formErrorMessage = '';
   }
 
-  protected updateSearchTerm(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    this.searchTerm = input.value;
-  }
-
-  protected applySearch(): void {
+  protected searchEmployees(): void {
     this.pageNumber = 1;
     this.loadEmployees();
   }
 
   protected clearSearch(): void {
-    if (!this.searchTerm.trim()) {
-      return;
-    }
-
-    this.searchTerm = '';
+    this.searchForm.controls.searchTerm.setValue('');
     this.pageNumber = 1;
     this.loadEmployees();
   }
@@ -136,6 +130,7 @@ export class EmployeePageComponent implements OnInit {
       next: () => {
         this.isSubmittingEmployee = false;
         this.showEmployeeForm = false;
+        this.searchForm.controls.searchTerm.setValue('');
         this.pageNumber = 1;
         this.employeeForm.reset({
           fullName: '',
@@ -208,8 +203,9 @@ export class EmployeePageComponent implements OnInit {
   private loadEmployees(): void {
     this.isLoadingEmployees = true;
     this.loadErrorMessage = '';
+    const term = this.searchForm.controls.searchTerm.value?.trim() ?? '';
 
-    this.employeeService.getEmployees(this.searchTerm, this.pageNumber, this.pageSize).subscribe({
+    this.employeeService.getEmployees(term, this.pageNumber, this.pageSize).subscribe({
       next: (result) => {
         this.employees = result.items;
         this.pageNumber = result.pageNumber;

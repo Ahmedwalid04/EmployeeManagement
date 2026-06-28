@@ -18,12 +18,13 @@ export class EmployeeService {
     pageNumber: number,
     pageSize: number
   ): Observable<PagedResult<Employee>> {
+    const term = searchTerm?.trim() ?? '';
     let params = new HttpParams()
       .set('pageNumber', String(pageNumber))
       .set('pageSize', String(pageSize));
 
-    if (searchTerm.trim()) {
-      params = params.set('searchTerm', searchTerm.trim());
+    if (term.length > 0) {
+      params = params.set('searchTerm', term);
     }
 
     return this.httpClient.get<PagedResult<Employee>>(this.employeesEndpoint, { params });
