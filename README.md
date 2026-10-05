@@ -1,101 +1,404 @@
 # Employee Management System
 
-Employee Management System built with ASP.NET Core Web API, EF Core, SQL Server, AutoMapper, Scalar, and a React + TypeScript + Tailwind frontend. React was approved by the company as a replacement for Angular.
+A full-stack employee management application built with **ASP.NET Core**, **Entity Framework Core**, **SQL Server**, **React**, and **TypeScript**.
+
+The project focuses on clean backend separation, API design, database-backed querying, pagination, sorting, soft deletion, structured error logging, and frontend/backend integration.
+
+---
+
+## Overview
+
+The application provides a simple employee-management workflow while demonstrating backend engineering concepts beyond basic CRUD.
+
+The backend separates responsibilities across:
+
+```text
+Controller → Service → Broker → Database
+```
+
+This keeps HTTP handling, business logic, persistence, and infrastructure concerns isolated from one another.
+
+---
 
 ## Features
 
-### Required
-- Employee CRUD flow for add, list/search, and delete
-- Department dropdown loaded from backend
-- Search by employee name
-- Pagination
-- Scalar API explorer
-- File-based exception logging to `EmployeeManagement/Logs/errors.txt`
+### Employee Management
 
-### Bonus
-- Sorting by full name, email, hire date, salary, department, and active status
-- Soft delete with `IsDeleted`
-- Toggle active/inactive endpoint and UI
-- Add employee modal
+- create employees
+- list employees
+- search employees by name
+- server-side pagination
+- server-side sorting
+- soft-delete employees
+- activate/deactivate employees
+- retrieve supported departments
+
+### API
+
+- RESTful ASP.NET Core controllers
+- DTO-based request and response models
+- configurable pagination
+- deterministic sorting
+- structured HTTP responses
+- Scalar API documentation
+- OpenAPI specification
+
+### Persistence
+
+- SQL Server
+- Entity Framework Core
+- EF Core migrations
+- `AsNoTracking()` for read-only queries
+- soft-delete filtering
+- asynchronous database operations
+
+### Reliability
+
+- cancellation-token propagation
+- dedicated file-logging broker
+- centralized unexpected-error handling
+- bounded page sizes
+- separation between storage and business logic
+
+### Frontend
+
+- React
+- TypeScript
+- Vite
+- Tailwind CSS
+- typed API service
+- employee listing
+- search
+- pagination
+- sorting
+- employee creation
+- soft deletion
+- active/inactive status management
+
+---
+
+## Architecture
+
+```mermaid
+flowchart LR
+    A[React + TypeScript]
+    B[ASP.NET Core Controllers]
+    C[Employee Service]
+    D[Storage Broker]
+    E[Entity Framework Core]
+    F[(SQL Server)]
+    G[File Logging Broker]
+
+    A --> B
+    B --> C
+    C --> D
+    D --> E
+    E --> F
+
+    C --> G
+    B -. unexpected errors .-> G
+```
+
+### Controller Layer
+
+Controllers handle HTTP concerns and delegate business behavior to services.
+
+For example:
+
+```text
+EmployeesController
+    ↓
+IEmployeeService
+```
+
+### Service Layer
+
+`EmployeeService` handles application logic including:
+
+- search
+- sorting
+- pagination
+- soft deletion
+- active-status changes
+- DTO mapping
+- error logging
+
+### Broker Layer
+
+Infrastructure is abstracted behind brokers.
+
+```text
+IStorageBroker
+    ↓
+StorageBroker
+    ↓
+AppDbContext
+    ↓
+SQL Server
+```
+
+This prevents the service layer from depending directly on EF Core's database context.
+
+A separate `IFileLoggingBroker` handles error persistence.
+
+---
 
 ## Tech Stack
 
-- Backend: ASP.NET Core Web API, EF Core, SQL Server, AutoMapper, Scalar
-- Frontend: React, TypeScript, Vite, Tailwind CSS
-- Architecture: Broker -> Service -> Controller
+| Area | Technologies |
+| --- | --- |
+| Backend | C#, ASP.NET Core, .NET 10 |
+| ORM | Entity Framework Core |
+| Database | SQL Server |
+| Mapping | AutoMapper |
+| API Documentation | OpenAPI, Scalar |
+| Frontend | React 19, TypeScript |
+| Build Tool | Vite |
+| Styling | Tailwind CSS |
+
+---
+
+## API
+
+### Employees
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/Employees` | List, search, sort and paginate employees |
+| `POST` | `/api/Employees` | Create an employee |
+| `DELETE` | `/api/Employees/{id}` | Soft-delete an employee |
+| `PATCH` | `/api/Employees/{id}/toggle-active` | Toggle active/inactive status |
+
+The list endpoint supports query parameters such as:
+
+```text
+searchTerm
+pageNumber
+pageSize
+sortBy
+sortDirection
+```
+
+Page size is limited by the API to prevent unbounded queries.
+
+### Departments
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/Departments` | Retrieve supported departments |
+
+---
+
+## Project Structure
+
+```text
+EmployeeManagement/
+├── EmployeeManagement/
+│   ├── Brokers/
+│   │   ├── FileLoggingBroker/
+│   │   └── StorageBroker/
+│   ├── Controllers/
+│   ├── Data/
+│   ├── DTOs/
+│   ├── Migrations/
+│   ├── Models/
+│   ├── Profiles/
+│   ├── Services/
+│   ├── Program.cs
+│   └── appsettings.json
+│
+├── employee-management-client/
+│   └── src/
+│       ├── services/
+│       └── ...
+│
+└── README.md
+```
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+Install:
+
+- .NET 10 SDK
+- SQL Server
+- Node.js
+- npm
+
+---
 
 ## Backend Setup
 
-1. Update the connection string in `EmployeeManagement/appsettings.json` and `EmployeeManagement/appsettings.Development.json` if your local SQL Server instance differs from:
+Clone the repository and navigate to it.
+
+Update the database connection string if your SQL Server instance differs from the default development configuration:
 
 ```json
-"DefaultConnection": "Server=localhost\\SQLEXPRESS;Database=EmployeeManagementDb;Trusted_Connection=True;TrustServerCertificate=True"
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "Server=localhost\\SQLEXPRESS;Database=EmployeeManagementDb;Trusted_Connection=True;TrustServerCertificate=True"
+  }
+}
 ```
 
-2. Restore the local EF Core tool:
+Restore dependencies:
 
-```powershell
-dotnet tool restore
+```bash
+dotnet restore
 ```
 
-3. Apply the database migrations:
+Apply the database migrations:
 
-```powershell
+```bash
 dotnet ef database update --project EmployeeManagement/EmployeeManagement.csproj --startup-project EmployeeManagement/EmployeeManagement.csproj
 ```
 
-4. Run the backend:
+Run the backend:
 
-```powershell
+```bash
 dotnet run --project EmployeeManagement/EmployeeManagement.csproj
 ```
 
-5. Open Scalar:
-
-```text
-https://localhost:7168/scalar/v1
-```
-
-The exact backend URL may differ based on your local launch profile.
-
-## Frontend Setup
-
-1. Install dependencies:
-
-```powershell
-cd employee-management-client
-npm install
-```
-
-2. If needed, update the API base URL in `employee-management-client/.env` or `employee-management-client/src/services/employeeApi.ts`. The current fallback URL is:
+The HTTP development profile runs at:
 
 ```text
 http://localhost:5114
 ```
 
-3. Start the frontend:
+The HTTPS profile also exposes:
 
-```powershell
+```text
+https://localhost:7053
+```
+
+---
+
+## API Documentation
+
+While the backend is running, Scalar API documentation is available at:
+
+```text
+http://localhost:5114/scalar/v1
+```
+
+The OpenAPI document is also exposed by the application.
+
+---
+
+## Frontend Setup
+
+Navigate to the frontend:
+
+```bash
+cd employee-management-client
+```
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Optionally configure the backend URL:
+
+```env
+VITE_API_BASE_URL=http://localhost:5114
+```
+
+If no value is provided, the frontend currently falls back to:
+
+```text
+http://localhost:5114
+```
+
+Start the frontend:
+
+```bash
 npm run dev
 ```
 
-4. Open:
+---
+
+## Engineering Highlights
+
+### Server-side pagination
+
+Pagination happens in the database query using `Skip()` and `Take()` rather than loading the entire employee table into memory.
+
+### Search
+
+Employee search is composed directly into the `IQueryable`, allowing SQL Server to perform the filtering.
+
+### Sorting
+
+Employees can be sorted by:
+
+- full name
+- email
+- hire date
+- salary
+- department
+- active status
+
+A deterministic ID-based secondary sort is applied to keep result ordering stable.
+
+### Soft deletion
+
+Deleting an employee does not physically remove the database row.
+
+Instead:
 
 ```text
-http://localhost:5173
+IsDeleted = true
 ```
 
-## Build Commands
+Normal employee queries exclude deleted records.
+
+### Read-query optimization
+
+Read-only employee queries use:
+
+```csharp
+AsNoTracking()
+```
+
+to avoid unnecessary Entity Framework change tracking.
+
+### Error logging
+
+Application and service failures are recorded through a dedicated file-logging broker instead of mixing infrastructure logging directly into business logic.
+
+---
+
+## Build
 
 Backend:
 
-```powershell
+```bash
 dotnet build EmployeeManagement.slnx
 ```
 
 Frontend:
 
-```powershell
+```bash
 cd employee-management-client
 npm run build
 ```
+
+---
+
+## Purpose
+
+This project demonstrates practical ASP.NET Core backend development with an emphasis on:
+
+- layered application architecture
+- dependency injection
+- REST API design
+- relational database access
+- asynchronous programming
+- query composition
+- maintainable separation of concerns
+- React/API integration
